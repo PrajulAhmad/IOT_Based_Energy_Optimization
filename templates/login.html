@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Login — IoT Energy Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:#080d1a;color:#e2e8f4;overflow:hidden}
+body::before{content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse at 30% 20%,rgba(99,130,255,.1),transparent 55%),
+             radial-gradient(ellipse at 70% 80%,rgba(34,211,238,.07),transparent 55%);pointer-events:none}
+.card{position:relative;z-index:1;width:420px;max-width:92vw;background:rgba(17,24,39,.85);
+  backdrop-filter:blur(20px);border:1px solid rgba(99,130,255,.15);border-radius:24px;
+  padding:48px 40px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.logo{display:flex;align-items:center;gap:14px;margin-bottom:32px;justify-content:center}
+.logo-box{width:50px;height:50px;border-radius:14px;background:linear-gradient(135deg,#6382ff,#22d3ee);
+  display:flex;align-items:center;justify-content:center;font-size:24px;
+  box-shadow:0 0 30px rgba(99,130,255,.35)}
+.logo h1{font-size:1.4rem;font-weight:800;background:linear-gradient(135deg,#6382ff,#22d3ee);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.tabs{display:flex;margin-bottom:28px;border-radius:12px;background:rgba(255,255,255,.04);overflow:hidden}
+.tab{flex:1;padding:11px;text-align:center;font-weight:600;font-size:.85rem;cursor:pointer;
+  transition:all .2s;color:#8892a8;border:1px solid transparent}
+.tab.active{background:rgba(99,130,255,.15);color:#6382ff;border-color:rgba(99,130,255,.25);border-radius:12px}
+.form{display:none}.form.active{display:block}
+label{display:block;font-size:.78rem;font-weight:600;color:#8892a8;margin-bottom:6px;
+  text-transform:uppercase;letter-spacing:.8px;margin-top:18px}
+label:first-child{margin-top:0}
+input,select{width:100%;padding:13px 16px;background:rgba(26,34,53,.8);border:1px solid rgba(99,130,255,.15);
+  border-radius:11px;color:#e2e8f4;font-size:.92rem;font-family:inherit;outline:none;transition:border .2s}
+input:focus,select:focus{border-color:#6382ff;box-shadow:0 0 12px rgba(99,130,255,.15)}
+select{cursor:pointer;appearance:none}
+.btn{width:100%;padding:14px;margin-top:24px;border:none;border-radius:12px;font-family:inherit;
+  font-size:.95rem;font-weight:700;cursor:pointer;transition:all .25s;
+  background:linear-gradient(135deg,#6382ff,#22d3ee);color:#fff;
+  box-shadow:0 4px 20px rgba(99,130,255,.3)}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(99,130,255,.4)}
+.msg{margin-top:16px;padding:11px;border-radius:10px;font-size:.82rem;font-weight:600;
+  text-align:center;display:none}
+.msg.err{display:block;background:rgba(248,113,113,.12);color:#f87171;border:1px solid rgba(248,113,113,.25)}
+.msg.ok{display:block;background:rgba(52,211,153,.12);color:#34d399;border:1px solid rgba(52,211,153,.25)}
+.hint{text-align:center;margin-top:20px;font-size:.78rem;color:#5a6478}
+.hint span{color:#6382ff;font-weight:600}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-box">&#9889;</div>
+    <h1>Energy Dashboard</h1>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('login')">Sign In</div>
+    <div class="tab" onclick="switchTab('register')">Register</div>
+  </div>
+  <div class="form active" id="form-login">
+    <label>Username</label>
+    <input id="l-user" type="text" placeholder="Enter username" autocomplete="username">
+    <label>Password</label>
+    <input id="l-pass" type="password" placeholder="Enter password" autocomplete="current-password">
+    <button class="btn" onclick="doLogin()">Sign In</button>
+    <div class="msg" id="l-msg"></div>
+    <div class="hint">Default: <span>admin / admin123</span> or <span>viewer / viewer123</span></div>
+  </div>
+  <div class="form" id="form-register">
+    <label>Username</label>
+    <input id="r-user" type="text" placeholder="Choose username">
+    <label>Password</label>
+    <input id="r-pass" type="password" placeholder="Choose password">
+    <label>Role</label>
+    <select id="r-role"><option value="viewer">Viewer</option><option value="admin">Admin</option></select>
+    <button class="btn" onclick="doRegister()">Create Account</button>
+    <div class="msg" id="r-msg"></div>
+  </div>
+</div>
+<script>
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach(function(el,i){el.classList.toggle('active',i===(t==='login'?0:1))});
+  document.getElementById('form-login').classList.toggle('active',t==='login');
+  document.getElementById('form-register').classList.toggle('active',t==='register');
+}
+function showMsg(id,txt,ok){var el=document.getElementById(id);el.textContent=txt;el.className='msg '+(ok?'ok':'err')}
+function doLogin(){
+  var u=document.getElementById('l-user').value,p=document.getElementById('l-pass').value;
+  fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username:u,password:p})})
+  .then(function(r){return r.json().then(function(d){return{ok:r.ok,data:d}})})
+  .then(function(r){
+    if(r.ok){window.location.href='/'}
+    else{showMsg('l-msg',r.data.error||'Login failed',false)}
+  }).catch(function(){showMsg('l-msg','Connection error',false)});
+}
+function doRegister(){
+  var u=document.getElementById('r-user').value,p=document.getElementById('r-pass').value,
+      role=document.getElementById('r-role').value;
+  fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({username:u,password:p,role:role})})
+  .then(function(r){return r.json().then(function(d){return{ok:r.ok,data:d}})})
+  .then(function(r){
+    if(r.ok){showMsg('r-msg','Account created! You can sign in now.',true);switchTab('login')}
+    else{showMsg('r-msg',r.data.error||'Registration failed',false)}
+  }).catch(function(){showMsg('r-msg','Connection error',false)});
+}
+document.querySelectorAll('input').forEach(function(el){el.addEventListener('keydown',function(e){
+  if(e.key==='Enter'){var f=el.closest('.form');f.id==='form-login'?doLogin():doRegister()}
+})});
+</script>
+</body>
+</html>
