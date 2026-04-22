@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IoT Smart Building Energy Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#080d1a;--card:#111827;--card2:#1a2235;--border:rgba(100,120,255,.13);
+  --txt:#e2e8f4;--muted:#8892a8;--dim:#4a5568;
+  --blue:#6382ff;--cyan:#22d3ee;--green:#34d399;--red:#f87171;--amber:#fbbf24;--purple:#a78bfa;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 15% 15%,rgba(99,130,255,.07),transparent 55%),radial-gradient(ellipse at 85% 80%,rgba(34,211,238,.05),transparent 55%);pointer-events:none}
+
+/* ALERT */
+#alert-bar{display:none;position:sticky;top:0;z-index:99;padding:13px;text-align:center;font-weight:700;font-size:.9rem;letter-spacing:.4px;background:linear-gradient(90deg,#dc2626,#ef4444,#dc2626);background-size:200%;animation:abg 2s linear infinite;box-shadow:0 4px 20px rgba(220,38,38,.4)}
+#alert-bar.on{display:block}
+@keyframes abg{0%{background-position:0%}100%{background-position:200%}}
+
+/* HEADER */
+header{position:relative;z-index:1;padding:28px 36px 16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.logo{display:flex;align-items:center;gap:14px}
+.logo-box{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,var(--blue),var(--cyan));display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 0 24px rgba(99,130,255,.3)}
+.logo h1{font-size:1.5rem;font-weight:800;background:linear-gradient(135deg,var(--blue),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logo p{color:var(--muted);font-size:.8rem}
+.live-badge{display:flex;align-items:center;gap:7px;padding:7px 15px;border-radius:50px;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);font-size:.78rem;font-weight:600;color:var(--green)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* LAYOUT */
+.dash{position:relative;z-index:1;padding:0 36px 40px;max-width:1380px;margin:0 auto}
+
+/* METRIC CARDS */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:20px}
+.mc{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:22px;position:relative;overflow:hidden;transition:transform .25s,box-shadow .25s;cursor:default}
+.mc:hover{transform:translateY(-3px);box-shadow:0 8px 30px rgba(0,0,0,.35)}
+.mc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:15px 15px 0 0}
+.mc.temp::before{background:linear-gradient(90deg,var(--red),#fca5a5)}
+.mc.lux::before{background:linear-gradient(90deg,var(--amber),#fde68a)}
+.mc.occ::before{background:linear-gradient(90deg,var(--blue),var(--cyan))}
+.mc.pwr::before{background:linear-gradient(90deg,var(--green),#6ee7b7)}
+.mc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.mc-label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.mc-icon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:17px}
+.mc.temp .mc-icon{background:rgba(248,113,113,.12)}
+.mc.lux .mc-icon{background:rgba(251,191,36,.12)}
+.mc.occ .mc-icon{background:rgba(99,130,255,.12)}
+.mc.pwr .mc-icon{background:rgba(52,211,153,.12)}
+.mc-val{font-size:2.2rem;font-weight:800;letter-spacing:-1px;line-height:1;transition:color .4s}
+.mc.temp .mc-val{color:var(--red)}.mc.lux .mc-val{color:var(--amber)}.mc.occ .mc-val{color:var(--blue)}.mc.pwr .mc-val{color:var(--green)}
+.mc-unit{font-size:.75rem;color:var(--dim);margin-top:4px}
+.mc-bar{height:4px;border-radius:4px;background:rgba(255,255,255,.07);margin-top:14px;overflow:hidden}
+.mc-bar-fill{height:100%;border-radius:4px;transition:width .6s ease}
+.mc.temp .mc-bar-fill{background:linear-gradient(90deg,var(--red),#fca5a5)}
+.mc.lux .mc-bar-fill{background:linear-gradient(90deg,var(--amber),#fde68a)}
+.mc.occ .mc-bar-fill{background:linear-gradient(90deg,var(--blue),var(--cyan))}
+.mc.pwr .mc-bar-fill{background:linear-gradient(90deg,var(--green),#6ee7b7)}
+
+/* STATS ROW */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:20px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:16px 20px;text-align:center}
+.stat-val{font-size:1.45rem;font-weight:800;color:var(--purple)}
+.stat-label{font-size:.72rem;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.7px}
+
+/* DEVICE + CONTROLS */
+.mid-row{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px}
+.device-card{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:22px 24px}
+.device-title{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:16px}
+.device{display:flex;align-items:center;gap:16px;margin-bottom:14px}
+.device:last-child{margin-bottom:0}
+.dev-icon{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;transition:all .4s;flex-shrink:0}
+.dev-icon.on{background:rgba(52,211,153,.15);box-shadow:0 0 20px rgba(52,211,153,.25)}
+.dev-icon.off{background:rgba(248,113,113,.1)}
+.dev-info{flex:1}
+.dev-name{font-weight:700;font-size:.95rem}
+.dev-state{font-size:.8rem;font-weight:600;margin-top:2px;transition:color .3s}
+.dev-state.on{color:var(--green)}.dev-state.off{color:var(--red)}
+.dev-btns{display:flex;gap:6px}
+.btn-ovr{padding:5px 12px;border-radius:50px;border:1px solid;font-size:.72rem;font-weight:700;cursor:pointer;transition:all .2s;background:transparent}
+.btn-on{border-color:rgba(52,211,153,.35);color:var(--green)}.btn-on:hover{background:rgba(52,211,153,.15)}
+.btn-off{border-color:rgba(248,113,113,.35);color:var(--red)}.btn-off:hover{background:rgba(248,113,113,.12)}
+.btn-auto{border-color:rgba(99,130,255,.35);color:var(--blue)}.btn-auto:hover{background:rgba(99,130,255,.12)}
+.badge-override{padding:3px 10px;border-radius:50px;font-size:.68rem;font-weight:700;background:rgba(251,191,36,.15);color:var(--amber);border:1px solid rgba(251,191,36,.3);margin-left:4px}
+
+/* THRESHOLD */
+.ctrl-card{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:22px 24px}
+.ctrl-title{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:16px}
+.thr-row{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.thr-row label{font-size:.82rem;color:var(--muted);white-space:nowrap}
+.thr-row input{flex:1;background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--txt);font-size:.9rem;font-family:inherit;outline:none;transition:border .2s}
+.thr-row input:focus{border-color:var(--blue)}
+.btn-apply{padding:8px 18px;border-radius:8px;background:linear-gradient(135deg,var(--blue),var(--cyan));border:none;color:#fff;font-weight:700;font-size:.8rem;cursor:pointer;transition:opacity .2s}
+.btn-apply:hover{opacity:.85}
+.thr-cur{font-size:.82rem;color:var(--muted)}
+.thr-cur span{color:var(--amber);font-weight:700}
+
+/* EXPORT */
+.btn-export{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.25);color:var(--green);font-weight:700;font-size:.8rem;cursor:pointer;text-decoration:none;transition:all .2s;margin-top:14px}
+.btn-export:hover{background:rgba(52,211,153,.2)}
+
+/* CHART */
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:26px;margin-bottom:20px}
+.section-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}
+.section-hdr h2{font-size:1.05rem;font-weight:700}
+.section-hdr p{font-size:.75rem;color:var(--muted);margin-top:2px}
+.chart-wrap{position:relative;height:290px}
+
+/* TABLE */
+.table-card{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:26px;margin-bottom:20px;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th{text-align:left;padding:10px 14px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.7px;font-size:.7rem;border-bottom:1px solid var(--border)}
+td{padding:11px 14px;border-bottom:1px solid rgba(255,255,255,.04);color:var(--txt);transition:background .2s}
+tr:hover td{background:rgba(99,130,255,.04)}
+.pill{padding:3px 10px;border-radius:50px;font-size:.68rem;font-weight:700}
+.pill.on{background:rgba(52,211,153,.15);color:var(--green)}.pill.off{background:rgba(248,113,113,.1);color:var(--red)}
+.pill.alert{background:rgba(248,113,113,.15);color:var(--red)}.pill.ok{background:rgba(52,211,153,.1);color:var(--green)}
+
+footer{text-align:center;padding:20px;color:var(--dim);font-size:.72rem;position:relative;z-index:1}
+
+@media(max-width:900px){.metrics,.stats-row{grid-template-columns:repeat(2,1fr)}.mid-row{grid-template-columns:1fr}}
+@media(max-width:500px){.metrics,.stats-row{grid-template-columns:1fr}.dash{padding:0 16px 30px}.mc-val{font-size:1.8rem}}
+</style>
+</head>
+<body>
+
+<div id="alert-bar">&#9888; HIGH POWER CONSUMPTION ALERT — Current usage exceeds threshold!</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-box">&#9889;</div>
+    <div><h1>Smart Building Energy</h1><p>IoT Monitoring &amp; Optimization — v2</p></div>
+  </div>
+  <div class="live-badge"><div class="dot"></div>Live Monitoring &nbsp;|&nbsp; <span id="last-update">--</span></div>
+</header>
+
+<main class="dash">
+
+  <!-- Metric Cards -->
+  <div class="metrics">
+    <div class="mc temp" id="mc-temp">
+      <div class="mc-top"><span class="mc-label">Temperature</span><div class="mc-icon">&#127777;</div></div>
+      <div class="mc-val" id="v-temp">--</div><div class="mc-unit">Degrees Celsius</div>
+      <div class="mc-bar"><div class="mc-bar-fill" id="bar-temp" style="width:0%"></div></div>
+    </div>
+    <div class="mc lux" id="mc-lux">
+      <div class="mc-top"><span class="mc-label">Light Level</span><div class="mc-icon">&#9728;</div></div>
+      <div class="mc-val" id="v-lux">--</div><div class="mc-unit">Lux</div>
+      <div class="mc-bar"><div class="mc-bar-fill" id="bar-lux" style="width:0%"></div></div>
+    </div>
+    <div class="mc occ" id="mc-occ">
+      <div class="mc-top"><span class="mc-label">Occupancy</span><div class="mc-icon">&#128101;</div></div>
+      <div class="mc-val" id="v-occ">--</div><div class="mc-unit">Occupancy Status</div>
+      <div class="mc-bar"><div class="mc-bar-fill" id="bar-occ" style="width:0%"></div></div>
+    </div>
+    <div class="mc pwr" id="mc-pwr">
+      <div class="mc-top"><span class="mc-label">Power Usage</span><div class="mc-icon">&#9889;</div></div>
+      <div class="mc-val" id="v-pwr">--</div><div class="mc-unit">Watts</div>
+      <div class="mc-bar"><div class="mc-bar-fill" id="bar-pwr" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="stats-row" id="stats-row">
+    <div class="stat"><div class="stat-val" id="s-total">--</div><div class="stat-label">Total Readings</div></div>
+    <div class="stat"><div class="stat-val" id="s-avg-pwr">--</div><div class="stat-label">Avg Power (W)</div></div>
+    <div class="stat"><div class="stat-val" id="s-max-pwr">--</div><div class="stat-label">Peak Power (W)</div></div>
+    <div class="stat"><div class="stat-val" id="s-alerts">--</div><div class="stat-label">Total Alerts</div></div>
+  </div>
+
+  <!-- Device Controls + Threshold -->
+  <div class="mid-row">
+    <div class="device-card">
+      <div class="device-title">Device Control</div>
+      <div class="device" id="dev-light">
+        <div class="dev-icon off" id="di-light">&#128161;</div>
+        <div class="dev-info">
+          <div class="dev-name">Smart Lighting <span id="ovr-light-badge" style="display:none" class="badge-override">OVERRIDE</span></div>
+          <div class="dev-state off" id="ds-light">Waiting...</div>
+        </div>
+        <div class="dev-btns">
+          <button class="btn-ovr btn-on" onclick="override('light',true)">ON</button>
+          <button class="btn-ovr btn-off" onclick="override('light',false)">OFF</button>
+          <button class="btn-ovr btn-auto" onclick="override('light',null)">AUTO</button>
+        </div>
+      </div>
+      <div class="device" id="dev-hvac">
+        <div class="dev-icon off" id="di-hvac">&#10052;</div>
+        <div class="dev-info">
+          <div class="dev-name">HVAC System <span id="ovr-hvac-badge" style="display:none" class="badge-override">OVERRIDE</span></div>
+          <div class="dev-state off" id="ds-hvac">Waiting...</div>
+        </div>
+        <div class="dev-btns">
+          <button class="btn-ovr btn-on" onclick="override('hvac',true)">ON</button>
+          <button class="btn-ovr btn-off" onclick="override('hvac',false)">OFF</button>
+          <button class="btn-ovr btn-auto" onclick="override('hvac',null)">AUTO</button>
+        </div>
+      </div>
+    </div>
+    <div class="ctrl-card">
+      <div class="ctrl-title">Settings &amp; Export</div>
+      <div class="thr-cur">Alert threshold: <span id="thr-display">400</span> W</div>
+      <div class="thr-row" style="margin-top:12px">
+        <label>New Threshold (W)</label>
+        <input type="number" id="thr-input" value="400" min="50" max="2000" step="10">
+        <button class="btn-apply" onclick="applyThreshold()">Apply</button>
+      </div>
+      <div class="thr-cur">Avg Temp: <span id="s-avg-temp" style="color:var(--red);font-weight:700">--</span> °C &nbsp;|&nbsp; Min Power: <span id="s-min-pwr" style="color:var(--cyan);font-weight:700">--</span> W</div>
+      <a class="btn-export" href="/api/export/csv" download>&#11015; Export All Data as CSV</a>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-card">
+    <div class="section-hdr">
+      <div><h2>Power Consumption Trend</h2><p>Last 30 readings — auto-refreshes every 3 s</p></div>
+      <div class="live-badge" style="font-size:.72rem"><div class="dot"></div>Live Data</div>
+    </div>
+    <div class="chart-wrap"><canvas id="powerChart"></canvas></div>
+  </div>
+
+  <!-- Recent Readings Table -->
+  <div class="table-card">
+    <div class="section-hdr">
+      <div><h2>Recent Sensor Readings</h2><p>Last 10 entries from the database</p></div>
+    </div>
+    <table id="readings-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Time</th><th>Temp °C</th><th>Lux</th>
+          <th>Occupancy</th><th>Power W</th><th>Light</th><th>HVAC</th><th>Alert</th>
+        </tr>
+      </thead>
+      <tbody id="tbl-body"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">Waiting for data...</td></tr></tbody>
+    </table>
+  </div>
+
+</main>
+<footer>IoT Smart Building Energy Optimizer v2 &mdash; Real-time Monitoring &amp; Optimization</footer>
+
+<script>
+// Chart setup
+var ctx = document.getElementById('powerChart').getContext('2d');
+var grad = ctx.createLinearGradient(0,0,0,290);
+grad.addColorStop(0,'rgba(99,130,255,.28)');
+grad.addColorStop(1,'rgba(99,130,255,0)');
+var chart = new Chart(ctx,{
+  type:'line',
+  data:{labels:[],datasets:[{label:'Power (W)',data:[],borderColor:'#6382ff',backgroundColor:grad,borderWidth:2.5,fill:true,tension:.4,pointRadius:0,pointHoverRadius:6,pointHoverBackgroundColor:'#6382ff',pointHoverBorderColor:'#fff',pointHoverBorderWidth:2}]},
+  options:{responsive:true,maintainAspectRatio:false,interaction:{intersect:false,mode:'index'},plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a2235',titleColor:'#e2e8f4',bodyColor:'#8892a8',borderColor:'rgba(99,130,255,.3)',borderWidth:1,cornerRadius:10,padding:12,displayColors:false,callbacks:{label:function(c){return 'Power: '+c.parsed.y.toFixed(1)+' W'}}}},scales:{x:{grid:{color:'rgba(99,130,255,.05)'},ticks:{color:'#4a5568',font:{size:10},maxRotation:0,maxTicksLimit:8},border:{display:false}},y:{grid:{color:'rgba(99,130,255,.05)'},ticks:{color:'#4a5568',font:{size:10},callback:function(v){return v+'W'}},border:{display:false},suggestedMin:50,suggestedMax:700}}}
+});
+
+// Override helper
+function override(device, state){
+  fetch('/api/override',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device:device,state:state})})
+  .then(function(r){return r.json()})
+  .then(function(){refresh()})
+  .catch(function(e){console.error(e)});
+}
+
+// Threshold helper
+function applyThreshold(){
+  var val = parseFloat(document.getElementById('thr-input').value);
+  if(isNaN(val)||val<1){alert('Enter a valid number');return;}
+  fetch('/api/threshold',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({threshold:val})})
+  .then(function(r){return r.json()})
+  .then(function(d){document.getElementById('thr-display').textContent=d.threshold;refresh();})
+  .catch(function(e){console.error(e)});
+}
+
+// Update device UI
+function setDevice(id, isOn, isOverride){
+  var icon = document.getElementById('di-'+id);
+  var state = document.getElementById('ds-'+id);
+  var badge = document.getElementById('ovr-'+id+'-badge');
+  icon.className = 'dev-icon '+(isOn?'on':'off');
+  state.className = 'dev-state '+(isOn?'on':'off');
+  state.textContent = id==='light' ? (isOn?'Active — Lights ON':'Inactive — Lights OFF') : (isOn?'Active — Cooling':'Inactive — Standby');
+  badge.style.display = isOverride ? 'inline' : 'none';
+}
+
+// Fetch stats
+function refreshStats(){
+  fetch('/api/stats').then(function(r){return r.json()}).then(function(d){
+    document.getElementById('s-total').textContent = d.total||0;
+    document.getElementById('s-avg-pwr').textContent = d.avg_power||'--';
+    document.getElementById('s-max-pwr').textContent = d.max_power||'--';
+    document.getElementById('s-alerts').textContent = d.total_alerts||0;
+    document.getElementById('s-avg-temp').textContent = d.avg_temp||'--';
+    document.getElementById('s-min-pwr').textContent = d.min_power||'--';
+  }).catch(function(){});
+}
+
+// Main refresh
+function refresh(){
+  fetch('/api/latest').then(function(r){return r.json()}).then(function(data){
+    if(!data.latest) return;
+    var l = data.latest;
+    var rows = data.rows;
+
+    // Metrics
+    document.getElementById('v-temp').textContent = l.temp.toFixed(1);
+    document.getElementById('v-lux').textContent = Math.round(l.lux);
+    document.getElementById('v-occ').textContent = l.occupancy?'Yes':'No';
+    document.getElementById('v-pwr').textContent = l.power.toFixed(1);
+
+    // Progress bars
+    document.getElementById('bar-temp').style.width = Math.min(100,((l.temp-15)/25)*100)+'%';
+    document.getElementById('bar-lux').style.width = Math.min(100,(l.lux/1100)*100)+'%';
+    document.getElementById('bar-occ').style.width = l.occupancy?100:5+'%';
+    var thr = data.threshold||400;
+    document.getElementById('bar-pwr').style.width = Math.min(100,(l.power/(thr*1.5))*100)+'%';
+    document.getElementById('thr-display').textContent = thr;
+
+    // Devices
+    var ov = data.overrides||{};
+    setDevice('light', l.light_status===1, ov.light!==null&&ov.light!==undefined);
+    setDevice('hvac', l.hvac_status===1, ov.hvac!==null&&ov.hvac!==undefined);
+
+    // Alert
+    var ab = document.getElementById('alert-bar');
+    l.alert===1 ? ab.classList.add('on') : ab.classList.remove('on');
+
+    // Chart
+    var labels=[], powers=[];
+    for(var i=0;i<rows.length;i++){
+      var ts=rows[i].timestamp;
+      labels.push((ts.split('T')[1]||'').substring(0,8));
+      powers.push(rows[i].power);
+    }
+    chart.data.labels=labels;
+    chart.data.datasets[0].data=powers;
+    chart.update('none');
+
+    // Table (last 10, newest first)
+    var slice = rows.slice().reverse().slice(0,10);
+    var html='';
+    for(var j=0;j<slice.length;j++){
+      var r=slice[j];
+      var t=(r.timestamp.split('T')[1]||'').substring(0,8);
+      html+='<tr>'
+        +'<td>'+r.id+'</td>'
+        +'<td>'+t+'</td>'
+        +'<td>'+r.temp.toFixed(1)+'</td>'
+        +'<td>'+Math.round(r.lux)+'</td>'
+        +'<td><span class="pill '+(r.occupancy?'on':'off')+'">'+(r.occupancy?'YES':'NO')+'</span></td>'
+        +'<td>'+r.power.toFixed(1)+'</td>'
+        +'<td><span class="pill '+(r.light_status?'on':'off')+'">'+(r.light_status?'ON':'OFF')+'</span></td>'
+        +'<td><span class="pill '+(r.hvac_status?'on':'off')+'">'+(r.hvac_status?'ON':'OFF')+'</span></td>'
+        +'<td><span class="pill '+(r.alert?'alert':'ok')+'">'+(r.alert?'HIGH':'OK')+'</span></td>'
+        +'</tr>';
+    }
+    document.getElementById('tbl-body').innerHTML = html||'<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">No data yet</td></tr>';
+
+    // Last update time
+    document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+
+  }).catch(function(e){console.error(e)});
+
+  refreshStats();
+}
+
+refresh();
+setInterval(refresh,3000);
+</script>
+</body>
+</html>
